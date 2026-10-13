@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "metafile-rs fixture manifest",
+  "type": "object",
+  "required": ["fixtures"],
+  "properties": {
+    "fixtures": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "file", "origin", "licenseOrPermission", "generator", "generatedByUs", "acquiredDate", "sha256", "expectedFormat", "expectedSupport", "notableFeatures", "notes"],
+        "properties": {
+          "name": { "type": "string" },
+          "file": { "type": "string" },
+          "origin": { "type": "string" },
+          "licenseOrPermission": { "type": "string" },
+          "generator": { "type": "string" },
+          "generatedByUs": { "type": "boolean" },
+          "extractedFromOwnedDocument": { "type": "boolean" },
+          "sourceUrl": { "type": ["string", "null"] },
+          "acquiredDate": { "type": ["string", "null"] },
+          "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+          "expectedFormat": { "enum": ["wmf", "emf", "emfplus"] },
+          "expectedSupport": { "enum": ["render", "unsupported"] },
+          "placeable": { "type": ["boolean", "null"] },
+          "notableFeatures": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+          "notes": { "type": "string" },
+          "referenceRenderer": { "type": ["string", "null"] },
+          "referenceImage": { "type": ["string", "null"] },
+          "referenceImageProvenance": { "type": ["string", "null"] }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

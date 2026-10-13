@@ -1,0 +1,10 @@
+[package]
+name = "mf-cli"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+metafile = { path = "third_party/metafile-rs/crates/metafile" }
+
+[profile.release]
+debug = false
