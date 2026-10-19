@@ -97,11 +97,85 @@
         mv "$work/work.pdf" "$out"
         echo "saved: $out"
       '';
+      # headless pptx/ppt-to-pdf spike: same nixpkgs expression, stripped of
+      # everything a conversion-only build cannot use; sizing experiment
+      lo-min = (pkgs.callPackage "${nixpkgs}/pkgs/applications/office/libreoffice" {
+        variant = "stable";
+        withHelp = false;
+        withFonts = false;
+        withJava = false;
+        kdeIntegration = false;
+        langs = [ ];
+      }).overrideAttrs (old: {
+        # upstream bug: svl/uui keep a curl external dep when --disable-curl
+        patches = old.patches ++ [ ./disable-curl-deps.patch ];
+        # static single-binary target: bundled externals produce .a, system
+        # ones would stay dynamic — drop every --with-system-* flag
+        configureFlags =
+          lib.filter (f: !lib.hasPrefix "--with-system-" f && !lib.hasPrefix "--with-boost" f)
+            old.configureFlags
+          ++ [
+          "--enable-wasm-strip"
+          "--with-wasm-module=impress"
+          "--disable-gui"
+          "--disable-gtk3"
+          "--disable-gtk4"
+          "--disable-qt5"
+          "--disable-qt6"
+          "--disable-dbus"
+          "--disable-dconf"
+          "--disable-gio"
+          "--disable-gstreamer-1-0"
+          "--disable-cups"
+          "--disable-curl"
+          "--disable-openssl"
+          "--disable-nss"
+          "--disable-gpgmepp"
+          "--with-tls=no"
+          "--without-webdav"
+          "--disable-breakpad"
+          "--disable-crashdump"
+          "--disable-database-connectivity"
+          "--disable-firebird-sdbc"
+          "--disable-postgresql-sdbc"
+          "--disable-mariadb-sdbc"
+          "--disable-lpsolve"
+          "--disable-coinmp"
+          "--disable-pdfimport"
+          "--disable-pdfium"
+          "--disable-poppler"
+          "--disable-skia"
+          "--disable-opengl"
+          "--disable-cairo-canvas"
+          "--disable-sdremote"
+          "--disable-sdremote-bluetooth"
+          "--disable-extension-integration"
+          "--disable-extensions"
+          "--disable-xmlhelp"
+          "--disable-libcmis"
+          "--disable-ldap"
+          "--disable-lotuswordpro"
+          "--without-parquet-filter"
+          "--disable-librelogo"
+          "--disable-zxing"
+          "--disable-opencl"
+          "--disable-randr"
+          "--disable-eot"
+          "--disable-epm"
+          "--disable-rust-uno"
+          "--enable-python=no"
+          "--disable-dynamic-loading"
+          "--enable-customtarget-components"
+          "--enable-mergelibs=more"
+          "--with-theme=colibre"
+          "--with-build-platform-configure-options=--without-system-fontconfig --without-system-freetype --without-system-zlib"
+        ];
+      });
     in
     {
       packages.${system} = {
         default = pptx2pdf;
-        inherit pptx2pdf mf-cli emf2svg-conv;
+        inherit pptx2pdf mf-cli emf2svg-conv lo-min;
       };
 
       apps.${system}.default = {
@@ -111,9 +185,16 @@
 
       homeManagerModules.default = import ./home-manager.nix self;
 
-      devShells.${system}.default = pkgs.mkShell {
-        packages = [ python pkgs.inkscape mf-cli emf2svg-conv pkgs.libreoffice ] ++ fonts;
-        FONTCONFIG_FILE = fontsConf;
+      devShells.${system} = {
+        default = pkgs.mkShell {
+          packages = [ python pkgs.inkscape mf-cli emf2svg-conv pkgs.libreoffice ] ++ fonts;
+          FONTCONFIG_FILE = fontsConf;
+        };
+        # incremental build shell for the lo-min spike; source tree in ~/lo-src
+        lo = pkgs.mkShell {
+          inputsFrom = [ lo-min ];
+          NIX_CFLAGS_COMPILE = "-I${pkgs.librdf_rasqal}/include/rasqal -DSAL_LOG_WARN=1 -DSAL_LOG_INFO=1";
+        };
       };
     };
 }

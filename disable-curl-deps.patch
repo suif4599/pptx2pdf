@@ -1,0 +1,228 @@
+--- a/svl/Library_svl.mk	2026-10-14 10:59:15.689068129 +0800
++++ b/svl/Library_svl.mk	2026-10-14 10:59:15.698865203 +0800
+@@ -22,7 +22,7 @@
+ $(eval $(call gb_Library_use_externals,svl,\
+     boost_headers \
+     $(if $(filter LINUX MACOSX ANDROID iOS %BSD SOLARIS HAIKU,$(OS)), \
+-        curl) \
++        $(if $(filter CURL,$(BUILD_TYPE)),curl)) \
+     fast_float \
+     icu_headers \
+     icui18n \
+--- a/uui/Library_uui.mk	2026-10-14 10:59:15.693068087 +0800
++++ b/uui/Library_uui.mk	2026-10-14 10:59:15.703067980 +0800
+@@ -17,7 +17,7 @@
+ $(eval $(call gb_Library_set_componentfile,uui,uui/util/uui,services))
+ 
+ $(eval $(call gb_Library_use_external,uui,boost_headers))
+-$(eval $(call gb_Library_use_external,uui,curl))
++$(eval $(if $(filter CURL,$(BUILD_TYPE)),$(call gb_Library_use_external,uui,curl)))
+ 
+ $(eval $(call gb_Library_use_custom_headers,uui,\
+     officecfg/registry \
+--- a/xmlsecurity/Library_xmlsecurity.mk	2026-10-14 11:10:17.045459202 +0800
++++ b/xmlsecurity/Library_xmlsecurity.mk	2026-10-14 11:10:17.050459155 +0800
+@@ -44,7 +44,7 @@
+ 	vcl \
+ 	xo \
+ 	i18nlangtag \
+-	xsec_xmlsec \
++	$(if $(ENABLE_NSS)$(ENABLE_OPENSSL),xsec_xmlsec) \
+ ))
+ 
+ $(eval $(call gb_Library_add_exception_objects,xmlsecurity,\
+--- a/chart2/source/controller/main/ChartController_TextEdit.cxx	2026-10-14 14:14:27.401976056 +0800
++++ b/chart2/source/controller/main/ChartController_TextEdit.cxx	2026-10-14 14:14:27.437778255 +0800
+@@ -31,9 +31,7 @@
+ #include <ObjectIdentifier.hxx>
+ #include <ControllerLockGuard.hxx>
+ #include <comphelper/diagnose_ex.hxx>
+-#if !ENABLE_WASM_STRIP_ACCESSIBILITY
+ #include <AccessibleTextHelper.hxx>
+-#endif
+ #include <strings.hrc>
+ #include <chartview/DrawModelWrapper.hxx>
+ #include <osl/diagnose.h>
+--- a/solenv/gbuild/extensions/pre_MergedLibsList.mk	2026-10-19 11:20:27.055796632 +0800
++++ b/solenv/gbuild/extensions/pre_MergedLibsList.mk	2026-10-19 11:20:27.098565790 +0800
+@@ -49,8 +49,8 @@
+ 	fsstorage \
+ 	fwk \
+ 	$(if $(filter WNT,$(OS)),gdipluscanvas) \
+-	guesslang \
+-	$(call gb_Helper_optional,DESKTOP,helplinker) \
++	$(if $(ENABLE_WASM_STRIP_GUESSLANG),,guesslang) \
++	$(call gb_Helper_optionals_or,HELPTOOLS XMLHELP,helplinker) \
+ 	hyphen \
+ 	i18nsearch \
+ 	i18npool \
+@@ -102,8 +102,8 @@
+ 	updatefeed \
+ 	utl \
+ 	uui \
+-	vbaevents \
+-	vbahelper \
++	$(call gb_Helper_optional,SCRIPTING,vbaevents) \
++	$(call gb_Helper_optional,SCRIPTING,vbahelper) \
+ 	vcl \
+ 	vclcanvas \
+ 	xsec_xmlsec \
+@@ -142,7 +142,7 @@
+ 		dbaxml) \
+ 	$(call gb_Helper_optional,DBCONNECTIVITY,dbpool2) \
+ 	$(call gb_Helper_optional,DBCONNECTIVITY,dbu) \
+-	dlgprov \
++	$(call gb_Helper_optional,SCRIPTING,dlgprov) \
+ 	$(if $(ENABLE_EVOAB2),evoab) \
+ 	$(call gb_Helper_optional,DBCONNECTIVITY, \
+ 		flat \
+@@ -162,7 +162,7 @@
+ 		macab1 \
+ 	) \
+ 	mozbootstrap \
+-	msforms \
++	$(call gb_Helper_optional,SCRIPTING,msforms) \
+ 	$(call gb_Helper_optional,DBCONNECTIVITY,mysql_jdbc) \
+ 	$(call gb_Helper_optional,MARIADBC,$(call gb_Helper_optional,DBCONNECTIVITY,mysqlc)) \
+ 	$(if $(ENABLE_OPENGL_TRANSITIONS),OGLTrans) \
+--- a/codemaker/source/cppumaker/cpputype.cxx	2026-10-19 11:48:34.161960598 +0800
++++ b/codemaker/source/cppumaker/cpputype.cxx	2026-10-19 11:48:50.484963806 +0800
+@@ -3362,8 +3362,9 @@
+     o << indent() << "typelib_static_enum_type_init( &the_type,\n";
+     inc(31);
+     o << indent() << "\"" << name_ << "\",\n"
+-      << indent() << codemaker::cpp::scopedCppName(u2b(name_)) << "_"
+-      << u2b(entity_->getMembers()[0].name) << " );\n";
++      << indent() << "static_cast< ::sal_Int32 >("
++      << codemaker::cpp::scopedCppName(u2b(name_)) << "_"
++      << u2b(entity_->getMembers()[0].name) << ") );\n";
+     dec(31);
+     dec();
+     o << indent() << "}\n";
+--- a/desktop/Module_desktop.mk	2026-10-19 12:03:20.327895071 +0800
++++ b/desktop/Module_desktop.mk	2026-10-19 12:03:20.363504014 +0800
+@@ -103,10 +103,12 @@
+ else ifeq (,$(filter MACOSX ANDROID iOS HAIKU EMSCRIPTEN,$(OS)))
+ 
+ ifeq (,$(filter FUZZERS,$(BUILD_TYPE)))
++ifeq (,$(DISABLE_GUI))
+ $(eval $(call gb_Module_add_targets,desktop,\
+     Executable_oosplash \
+ ))
+ endif
++endif
+ 
+ endif # $(OS)
+ 
+--- a/external/Module_external.mk	2026-10-19 17:39:57.459953285 +0800
++++ b/external/Module_external.mk	2026-10-19 17:39:57.524269315 +0800
+@@ -10,7 +10,7 @@
+ $(eval $(call gb_Module_Module,external))
+ 
+ $(eval $(call gb_Module_add_moduledirs,external,\
+-	$(call gb_Helper_optional,XMLSEC,xmlsec) \
++	$(if $(ENABLE_NSS)$(ENABLE_OPENSSL),$(call gb_Helper_optional,XMLSEC,xmlsec)) \
+ 	$(call gb_Helper_optional,ABW,libabw) \
+ 	$(call gb_Helper_optional,AFDKO,afdko) \
+ 	$(call gb_Helper_optional,ARGON2,argon2) \
+--- a/writerperfect/Library_wpftwriter.mk	2026-10-19 18:04:29.457368839 +0800
++++ b/writerperfect/Library_wpftwriter.mk	2026-10-19 18:04:29.465900688 +0800
+@@ -59,11 +59,13 @@
+ 	xo \
+ ))
+ 
++ifneq (,$(filter EPUBGEN,$(BUILD_TYPE)))
+ ifneq ($(ENABLE_WASM_STRIP_EPUB),TRUE)
+ $(eval $(call gb_Library_use_externals,wpftwriter,\
+ 	epubgen \
+ ))
+ endif
++endif
+ 
+ $(eval $(call gb_Library_use_externals,wpftwriter,\
+ 	abw \
+@@ -86,6 +88,7 @@
+ 	zlib \
+ ))
+ 
++ifneq (,$(filter EPUBGEN,$(BUILD_TYPE)))
+ ifneq ($(ENABLE_WASM_STRIP_EPUB),TRUE)
+ $(eval $(call gb_Library_add_exception_objects,wpftwriter,\
+ 	writerperfect/source/writer/EPUBExportDialog \
+@@ -94,6 +97,7 @@
+ 	writerperfect/source/writer/EPUBPackage \
+ ))
+ endif
++endif
+ 
+ ifneq ($(ENABLE_WASM_STRIP_SWEXPORTS),TRUE)
+ $(eval $(call gb_Library_add_exception_objects,wpftwriter,\
+--- a/idl/source/objects/types.cxx	2026-10-19 18:02:07.131585293 +0800
++++ b/idl/source/objects/types.cxx	2026-10-19 18:10:16.081577329 +0800
+@@ -239,9 +239,15 @@
+             bReturn = true;
+     }
+ 
+-    rOutStm.WriteOString( "extern " );
++    rOutStm.WriteOString( "extern " ) << endl;
++    rOutStm.WriteOString( "#if !defined(_WIN32) && (defined(DISABLE_DYNLOADING) && (defined(ANDROID) || defined(IOS) || defined(__EMSCRIPTEN__) || defined(LINUX)))" ) << endl;
++    rOutStm.WriteOString( "__attribute__((visibility(\"default\")))" ) << endl;
+     if (bExport)
+-        rOutStm.WriteOString( "SFX2_DLLPUBLIC " );
++    {
++        rOutStm.WriteOString( "#else" ) << endl;
++        rOutStm.WriteOString( "SFX2_DLLPUBLIC" ) << endl;
++    }
++    rOutStm.WriteOString( "#endif" ) << endl;
+     rOutStm.WriteOString( "constinit const " ).WriteOString( aTypeName )
+            .WriteOString( aVarName ).WriteChar( ';' ) << endl;
+     if (bReturn)
+@@ -250,7 +256,7 @@
+     // write the implementation part
+     rOutStm.WriteOString( "#ifdef SFX_TYPEMAP" ) << endl;
+     rOutStm.WriteOString( "#if !defined(_WIN32) && (defined(DISABLE_DYNLOADING) && (defined(ANDROID) || defined(IOS) || defined(__EMSCRIPTEN__) || defined(LINUX)))" ) << endl;
+-    rOutStm.WriteOString( "__attribute__((__weak__))" ) << endl;
++    rOutStm.WriteOString( "extern __attribute__((__weak__, visibility(\"default\")))" ) << endl;
+     rOutStm.WriteOString( "#endif" ) << endl;
+     rOutStm.WriteOString( "constinit const " ).WriteOString( aTypeName ).WriteOString( aVarName )
+            .WriteOString( " = " ) << endl;
+--- a/Library_merged.mk	2026-10-19 20:55:00.000000000 +0800
++++ b/Library_merged.mk	2026-10-19 20:55:00.000000000 +0800
+@@ -18,11 +18,20 @@
+ $(eval $(call gb_Library_use_libraries,merged,\
+ 	cppu \
+ 	cppuhelper \
+ 	i18nlangtag \
++	localedata_en \
++	localedata_es \
++	localedata_euro \
++	localedata_others \
+ 	$(if $(ENABLE_JAVA), \
+ 		jvmaccess \
+ 		jvmfwk) \
+ 	sal \
+ 	salhelper \
+ 	xmlreader \
+ ))
++
++# static build: localedata/ulingu are otherwise only reachable through merged
++# members, whose link deps don't propagate to the final executable
++$(eval $(call gb_Library_use_static_libraries,merged,ulingu))
+
+--- a/postprocess/CustomTarget_components.mk	2026-10-19 20:56:00.000000000 +0800
++++ b/postprocess/CustomTarget_components.mk	2026-10-19 20:56:00.000000000 +0800
+@@ -31,10 +31,18 @@
+ 	$(file >$@,$(foreach comp,$(sort $(gb_ComponentTarget__ALLCOMPONENTS)),$(call gb_ComponentTarget_get_target,$(comp))$(gb_NEWLINE)))
+ 
++# wasm-strip drops these objects while their component files still declare
++# the constructors, leaving dangling entries in the static component map
++gb_static_components_stripped := ^(com_sun_star_comp_framework_AutoRecovery|com_sun_star_comp_svx_RecoveryUI|com_sun_star_comp_Writer_(AbiWordImportFilter|EPUBExportFilter|EPUBExportUIComponent|MSWorksImportFilter|MWAWImportFilter|WordPerfectImportFilter)|org_libreoffice_comp_(Calc_NumbersImportFilter|Writer_(EBookImportFilter|PagesImportFilter)))_get_implementation$$
++
+ $(postprocess_WORKDIR)/services_constructors.list: \
+     $(SRCDIR)/solenv/bin/constructors.py \
+     $(postprocess_WORKDIR)/services_componentfiles.list \
+     | $(postprocess_WORKDIR)/.dir
+ 	$(call gb_Output_announce,$(subst $(BUILDDIR)/,,$@),$(true),GEN,2)
+ 	$(call gb_Helper_abbreviate_dirs,$(call gb_ExternalExecutable_get_command,python) $^) > $@.tmp && \
++	    $(if $(ENABLE_WASM_STRIP_RECOVERYUI)$(ENABLE_WASM_STRIP_EPUB)$(ENABLE_WASM_STRIP_SWEXPORTS),grep -vE '$(gb_static_components_stripped)' $@.tmp > $@.tmp2 && mv $@.tmp2 $@.tmp &&,) \
+ 	    $(call gb_Helper_replace_if_different_and_touch,$@.tmp,$@)
