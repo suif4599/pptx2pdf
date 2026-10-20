@@ -226,3 +226,55 @@
  	$(call gb_Helper_abbreviate_dirs,$(call gb_ExternalExecutable_get_command,python) $^) > $@.tmp && \
 +	    $(if $(ENABLE_WASM_STRIP_RECOVERYUI)$(ENABLE_WASM_STRIP_EPUB)$(ENABLE_WASM_STRIP_SWEXPORTS),grep -vE '$(gb_static_components_stripped)' $@.tmp > $@.tmp2 && mv $@.tmp2 $@.tmp &&,) \
  	    $(call gb_Helper_replace_if_different_and_touch,$@.tmp,$@)
+--- a/solenv/gbuild/extensions/pre_MergedLibsList.mk	2026-10-19 21:45:00.000000000 +0800
++++ b/solenv/gbuild/extensions/pre_MergedLibsList.mk	2026-10-19 21:45:00.000000000 +0800
+@@ -123,7 +123,7 @@
+ 	) \
+-	analysis \
++	$(if $(ENABLE_WASM_STRIP_CALC),,analysis) \
+ 	animcore \
+@@ -134,7 +134,7 @@
+ 	cui \
+-	date \
++	$(if $(ENABLE_WASM_STRIP_CALC),,date) \
+ 	$(call gb_Helper_optional,DBCONNECTIVITY,dba) \
+@@ -169,7 +169,7 @@
+ 	$(call gb_Helper_optional,SCRIPTING,protocolhandler) \
+ 	$(call gb_Helper_optional,REPORTDESIGN,rpt) \
+ 	$(call gb_Helper_optional,REPORTDESIGN,rptui) \
+-	pricing \
++	$(if $(ENABLE_WASM_STRIP_CALC),,pricing) \
+ 	$(call gb_Helper_optional,SCRIPTING,scriptframe) \
+@@ -180,7 +180,7 @@
+ 	simplecanvas \
+-	solver \
++	$(if $(ENABLE_WASM_STRIP_CALC),,solver) \
+ 	storagefd \
+@@ -189,9 +189,9 @@
+ 	textconversiondlgs \
+ 	$(call gb_Helper_optional,XMLHELP,ucpchelp1) \
+ 	$(if $(ENABLE_LIBCMIS),ucpcmis1) \
+ 	$(if $(WITH_WEBDAV),ucpdav1) \
+ 	ucppkg1 \
+-	wpftcalc \
++	$(if $(ENABLE_WASM_STRIP_CALC),,wpftcalc) \
+ 	wpftdraw \
+ 	wpftimpress \
+-	wpftwriter \
++	$(if $(ENABLE_WASM_STRIP_WRITER),,wpftwriter) \
+ 	$(if $(filter WNT,$(OS)), \
+--- a/static/CustomTarget_emscripten_fs_image.mk	2026-10-19 21:50:00.000000000 +0800
++++ b/static/CustomTarget_emscripten_fs_image.mk	2026-10-19 21:50:00.000000000 +0800
+@@ -1655,6 +1655,7 @@
+     $(INSTROOT)/$(LIBO_SHARE_FOLDER)/config/soffice.cfg/writerperfect/ui/exportepub.ui \
+     $(INSTROOT)/$(LIBO_SHARE_FOLDER)/config/soffice.cfg/writerperfect/ui/wpftencodingdialog.ui \
++    $(if $(ENABLE_NSS)$(ENABLE_OPENSSL),\
+     $(INSTROOT)/$(LIBO_SHARE_FOLDER)/config/soffice.cfg/xmlsec/ui/certdetails.ui \
+     $(INSTROOT)/$(LIBO_SHARE_FOLDER)/config/soffice.cfg/xmlsec/ui/certgeneral.ui \
+     $(INSTROOT)/$(LIBO_SHARE_FOLDER)/config/soffice.cfg/xmlsec/ui/certpage.ui \
+@@ -1663,6 +1664,7 @@
+     $(INSTROOT)/$(LIBO_SHARE_FOLDER)/config/soffice.cfg/xmlsec/ui/securitytrustpage.ui \
+     $(INSTROOT)/$(LIBO_SHARE_FOLDER)/config/soffice.cfg/xmlsec/ui/selectcertificatedialog.ui \
+     $(INSTROOT)/$(LIBO_SHARE_FOLDER)/config/soffice.cfg/xmlsec/ui/viewcertdialog.ui \
++    ) \
+     $(INSTROOT)/$(LIBO_SHARE_FOLDER)/config/wizard/form/styles/beige.css \
