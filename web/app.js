@@ -12,6 +12,27 @@ addEventListener('error', (e) => {
   if (!ready) bootError = e.message;
 });
 
+const THEME_KEY = 'theme';
+const themeBtn = $('theme');
+
+function activeTheme() {
+  return document.documentElement.dataset.theme
+    || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+}
+
+function updateThemeButton() {
+  themeBtn.textContent = activeTheme() === 'dark' ? '☀' : '☾';
+}
+
+themeBtn.addEventListener('click', () => {
+  document.documentElement.dataset.theme = activeTheme() === 'dark' ? 'light' : 'dark';
+  localStorage.setItem(THEME_KEY, document.documentElement.dataset.theme);
+  updateThemeButton();
+});
+
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', updateThemeButton);
+updateThemeButton();
+
 const CJK_FALLBACK = 'WenQuanYi Micro Hei';
 const SANS_CJK = [
   'Noto Sans CJK SC', 'Noto Sans SC', 'Source Han Sans SC', 'Microsoft YaHei',
@@ -222,6 +243,7 @@ $('skipfonts').addEventListener('click', () => {
 
 function setStage(text) {
   $('progress').hidden = false;
+  $('progress').classList.toggle('done', text === 'Ready');
   $('stage').textContent = text;
 }
 
@@ -284,7 +306,7 @@ async function boot() {
     return;
   }
   $('fontgate').hidden = false;
-  setDetail('Local font access needs a click');
+  $('progress').hidden = true;
 }
 
 function launch() {

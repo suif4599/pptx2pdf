@@ -4,26 +4,32 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>pptx2pdf</title>
+<script>
+  try {
+    const t = localStorage.getItem('theme');
+    if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 <main>
-  <h1>pptx → pdf</h1>
-  <p class="hint">Conversion runs entirely in your browser. Nothing is uploaded.</p>
+  <header>
+    <div>
+      <h1>pptx → pdf</h1>
+      <p class="hint">Conversion runs entirely in your browser. Nothing is uploaded.</p>
+    </div>
+    <button id="theme" type="button" aria-label="Toggle color theme" title="Toggle color theme">☾</button>
+  </header>
 
   <section id="fontgate" hidden>
     <p class="hint">Use fonts installed on this computer so text matches the deck? The browser asks for permission once.</p>
-    <button id="usefonts">Use local fonts</button>
-    <button id="skipfonts" class="secondary">Skip</button>
+    <button id="usefonts" type="button">Use local fonts</button>
+    <button id="skipfonts" class="secondary" type="button">Skip</button>
   </section>
 
   <label id="open" for="file">Open .pptx / .ppt</label>
   <input id="file" type="file" accept=".pptx,.ppt">
-
-  <details id="fonts">
-    <summary>Font fallback</summary>
-    <div id="fontmap"></div>
-  </details>
 
   <section id="progress" hidden>
     <div id="stage"></div>
@@ -35,11 +41,16 @@
 
   <section id="result" hidden>
     <div class="row">
-      <button id="download">Download PDF</button>
+      <button id="download" type="button">Download PDF</button>
       <span id="pdfsize"></span>
     </div>
     <iframe id="preview"></iframe>
   </section>
+
+  <details id="fonts">
+    <summary>Font fallback</summary>
+    <div id="fontmap"></div>
+  </details>
 </main>
 <script type="module" src="app.js"></script>
 </body>
