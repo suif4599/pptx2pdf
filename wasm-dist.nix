@@ -53,6 +53,7 @@ runCommand "lo-wasm-dist"
     cp ${./web/app.js} $out/dist/app.js
     cp ${./web/styles.css} $out/dist/styles.css
     cp ${./web/_headers} $out/dist/_headers
+    cp ${./web/fix-worker.js} $out/dist/fix-worker.js
     cp ${./web/worker}/worker.js ${./web/worker}/wrangler.toml $out/dist/worker/
 
     cp ${emf2svg-wasm}/dist/emf2svg.js ${emf2svg-wasm}/dist/emf2svg.wasm $out/dist/vendor/

@@ -2,7 +2,6 @@ const LO_BASE = new URL('lo/', document.baseURI).href;
 const V = 'v=3';
 
 const $ = (id) => document.getElementById(id);
-let fixMod = null;
 let loPort = null;
 let pdfBlob = null;
 let pdfName = 'output.pdf';
@@ -314,33 +313,6 @@ async function startEngine() {
     return realFetch(input, init);
   };
 
-  const emfDir = new URL('vendor/', document.baseURI).href;
-  const emfBuf = await (await realFetch(emfDir + 'emf2svg.wasm')).arrayBuffer();
-  const Emf2Svg = (await import(emfDir + 'emf2svg.js?' + V)).default;
-  const emfMod = await Emf2Svg({
-    instantiateWasm: (info, ok) => WebAssembly.instantiate(emfBuf, info).then((r) => ok(r.instance)),
-  });
-  globalThis.__emf2svgConvert = (u8) => {
-    const ptr = emfMod._malloc(u8.length);
-    new Uint8Array(emfMod.HEAPU8.buffer, ptr, u8.length).set(u8);
-    const outPtrSlot = emfMod._malloc(4);
-    const outLenSlot = emfMod._malloc(4);
-    emfMod._emf2svg_convert(ptr, u8.length, outPtrSlot, outLenSlot);
-    const outPtr = emfMod.getValue(outPtrSlot, 'i32');
-    const outLen = emfMod.getValue(outLenSlot, 'i32');
-    const svg = emfMod.UTF8ToString(outPtr, outLen);
-    emfMod._emf2svg_free_out(outPtr);
-    emfMod._free(ptr);
-    emfMod._free(outPtrSlot);
-    emfMod._free(outLenSlot);
-    return svg;
-  };
-
-  const fixUrl = new URL('pptx_fix_wasm.js', document.baseURI).href;
-  const binds = await import(fixUrl);
-  await binds.default();
-  fixMod = binds;
-
   setStage('Starting LibreOffice');
   let loStatus = '';
   window.Module = {
@@ -440,6 +412,67 @@ function loCall(msg) {
   });
 }
 
+let fixWorker = null;
+let fixReady = null;
+
+async function fetchFontBuffers() {
+  const base = new URL('fonts/', document.baseURI).href;
+  const list = await (await fetch(base + 'index.json')).json();
+  const bufs = [];
+  for (const f of list) bufs.push(await (await fetch(base + f)).arrayBuffer());
+  return bufs;
+}
+
+function initFixWorker() {
+  if (fixReady) return fixReady;
+  fixReady = (async () => {
+    const fonts = await fetchFontBuffers();
+    const w = new Worker(new URL('fix-worker.js', document.baseURI), { type: 'module' });
+    fixWorker = w;
+    await new Promise((resolve, reject) => {
+      const onMsg = (e) => {
+        if (e.data.type === 'ready') {
+          w.removeEventListener('message', onMsg);
+          resolve();
+        } else if (e.data.type === 'error') {
+          w.removeEventListener('message', onMsg);
+          reject(new Error(e.data.error));
+        }
+      };
+      w.addEventListener('message', onMsg);
+      w.onerror = (e) => reject(new Error(e.message || 'fix worker failed'));
+      w.postMessage(
+        { type: 'init', emfDir: new URL('vendor/', document.baseURI).href, v: V, fonts },
+        fonts,
+      );
+    });
+    return w;
+  })();
+  return fixReady;
+}
+
+function fixPptx(pptx, fontMap) {
+  return new Promise((resolve, reject) => {
+    const w = fixWorker;
+    const onMsg = (e) => {
+      const m = e.data;
+      if (m.type === 'media') {
+        setBar(0.05 + 0.85 * (m.cur / m.total));
+        setDetail(`${m.cur}/${m.total}: ${m.media}`);
+      } else if (m.type === 'done') {
+        w.removeEventListener('message', onMsg);
+        resolve(m.pptx);
+      } else if (m.type === 'error') {
+        w.removeEventListener('message', onMsg);
+        reject(new Error(m.error));
+      }
+    };
+    w.addEventListener('message', onMsg);
+    const buf = pptx instanceof Uint8Array ? pptx.buffer : pptx;
+    w.postMessage({ type: 'convert', pptx: new Uint8Array(buf), fontMap }, [buf]);
+  });
+}
+
 async function convert(bytes, name) {
   const FS = Module.FS;
   try { FS.mkdir('/work'); } catch (e) {}
@@ -447,36 +480,32 @@ async function convert(bytes, name) {
   let pptxBytes = bytes;
   if (name.toLowerCase().endsWith('.ppt')) {
     setStage('Converting .ppt to .pptx');
+    setBar(0.05);
     FS.writeFile('/work/in.ppt', new Uint8Array(bytes));
     await loCall({ url: 'file:///work/in.ppt', out: 'file:///work/step.pptx', storeFilter: 'Impress MS PowerPoint 2007 XML' });
     pptxBytes = FS.readFile('/work/step.pptx');
   }
 
   setStage('Fixing formulas');
-  const fonts = [];
-  const fontsResp = await fetch(new URL('fonts/', document.baseURI).href + 'index.json');
-  const fontList = await fontsResp.json();
-  for (const f of fontList) {
-    fonts.push(new Uint8Array(await (await fetch(new URL('fonts/' + f, document.baseURI).href)).arrayBuffer()));
-  }
-  const cb = new fixMod.Callbacks(
-    () => {},
-    (cur, total, media) => { setBar(cur / total); setDetail(`${cur}/${total}: ${media}`); },
-  );
-  const fixed = fixMod.fix_pptx(new Uint8Array(pptxBytes), fonts, cb, effectiveFontMap());
+  setBar(0.05);
+  await initFixWorker();
+  const fixed = await fixPptx(pptxBytes, effectiveFontMap());
 
   setStage('Exporting PDF');
+  setBar(0.9);
+  setDetail('');
   FS.writeFile('/work/fixed.pptx', fixed);
   await loCall({ url: 'file:///work/fixed.pptx', out: 'file:///work/out.pdf', storeFilter: 'impress_pdf_Export' });
   const pdf = FS.readFile('/work/out.pdf');
   FS.unlink('/work/fixed.pptx');
   FS.unlink('/work/out.pdf');
+  setBar(1);
   return new Blob([pdf], { type: 'application/pdf' });
 }
 
 $('file').addEventListener('change', async () => {
   const f = $('file').files[0];
-  if (!f || !fixMod) return;
+  if (!f) return;
   $('error').hidden = true;
   $('result').hidden = true;
   setStage('Reading');
