@@ -1,0 +1,6 @@
+[submodule "third_party/metafile-rs"]
+	path = third_party/metafile-rs
+	url = https://github.com/Dantusaikamal/metafile-rs
+[submodule "third_party/libemf2svg"]
+	path = third_party/libemf2svg
+	url = https://github.com/kakwa/libemf2svg

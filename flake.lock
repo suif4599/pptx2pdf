@@ -1,5 +1,39 @@
 {
   "nodes": {
+    "libemf2svg": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1766415885,
+        "narHash": "sha256-OvsnJrhol8KKCeqkJeWZZmUUahX0ScvVZ3P/FQeURDk=",
+        "owner": "kakwa",
+        "repo": "libemf2svg",
+        "rev": "658a718de180666d342a78fd4046ec1f41e65e17",
+        "type": "github"
+      },
+      "original": {
+        "owner": "kakwa",
+        "repo": "libemf2svg",
+        "rev": "658a718de180666d342a78fd4046ec1f41e65e17",
+        "type": "github"
+      }
+    },
+    "metafile-rs": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1789579468,
+        "narHash": "sha256-/kii+RR8XMhdJUkO0Wvb1+wieyIwPeTYgs2cahe0pFE=",
+        "owner": "Dantusaikamal",
+        "repo": "metafile-rs",
+        "rev": "4ca2b1d73094a12241ba47c07b5a40d2838987f4",
+        "type": "github"
+      },
+      "original": {
+        "owner": "Dantusaikamal",
+        "repo": "metafile-rs",
+        "rev": "4ca2b1d73094a12241ba47c07b5a40d2838987f4",
+        "type": "github"
+      }
+    },
     "nixpkgs": {
       "locked": {
         "lastModified": 1791594108,
@@ -18,6 +52,8 @@
     },
     "root": {
       "inputs": {
+        "libemf2svg": "libemf2svg",
+        "metafile-rs": "metafile-rs",
         "nixpkgs": "nixpkgs"
       }
     }

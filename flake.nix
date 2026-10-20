@@ -2,8 +2,18 @@
   description = "pptx2pdf: convert legacy-formula pptx decks to PDF";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+  # pinned to the same commits as the third_party/* git submodules; the flake
+  # git source excludes submodule contents, so builds take the code from here
+  inputs.libemf2svg = {
+    url = "github:kakwa/libemf2svg/658a718de180666d342a78fd4046ec1f41e65e17";
+    flake = false;
+  };
+  inputs.metafile-rs = {
+    url = "github:Dantusaikamal/metafile-rs/4ca2b1d73094a12241ba47c07b5a40d2838987f4";
+    flake = false;
+  };
 
-  outputs = { self, nixpkgs }:
+  outputs = { self, nixpkgs, libemf2svg, metafile-rs }:
     let
       system = "x86_64-linux";
       lib = nixpkgs.lib;
@@ -26,19 +36,27 @@
         src = ./.;
         filter = path: type:
           let rel = lib.removePrefix (toString ./.) path;
-          in lib.any (p: lib.hasPrefix p rel) [ "/Cargo.toml" "/Cargo.lock" "/src" "/third_party" ];
+          in lib.any (p: lib.hasPrefix p rel) [ "/Cargo.toml" "/Cargo.lock" "/src" ];
       };
+      # Cargo.toml path-depends on third_party/metafile-rs, which the flake
+      # git source lacks (submodule), so graft the pinned input back in
+      rustSrcFull = pkgs.runCommand "mf-cli-src" { } ''
+        cp -r ${rustSrc} $out
+        chmod -R u+w $out
+        mkdir -p $out/third_party
+        cp -r ${metafile-rs} $out/third_party/metafile-rs
+      '';
       mf-cli = pkgs.rustPlatform.buildRustPackage {
         pname = "mf-cli";
         version = "0.1.0";
-        src = rustSrc;
+        src = rustSrcFull;
         cargoLock.lockFile = ./Cargo.lock;
         meta.mainProgram = "mf-cli";
       };
       emf2svg-conv = pkgs.stdenv.mkDerivation {
         pname = "emf2svg-conv";
         version = "unstable";
-        src = ./third_party/libemf2svg;
+        src = libemf2svg;
         nativeBuildInputs = [ pkgs.cmake pkgs.pkg-config ];
         buildInputs = [ pkgs.libpng pkgs.freetype pkgs.fontconfig pkgs.libxml2 pkgs.zlib ];
         cmakeFlags = [ "-DCMAKE_BUILD_TYPE=Release" "-DCMAKE_SKIP_BUILD_RPATH=TRUE" ];
