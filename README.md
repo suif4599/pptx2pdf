@@ -20,19 +20,25 @@ Add input to `flake.nix`:
 inputs.pptx2pdf.url = "github:<owner>/pptx2pdf";
 ```
 
-Then create `pptx2pdf.nix` and import it in `flake.nix`:
+Three install modes are provided through the home-manager module:
 
 ```nix
 { inputs, ... }: {
-  home.packages = [ inputs.pptx2pdf.packages.x86_64-linux.default ];
+  imports = [ inputs.pptx2pdf.homeManagerModules.default ];
+
+  programs.pptx2pdf = {
+    enable = true;
+    # useSystemLibreOffice = true; the wrapper calls `soffice` from PATH
+    # staticLibreOffice = true will install the stripped single-binary LibreOffice
+  };
 }
 ```
 
-After writing either file, import it in `flake.nix`:
+Equivalent packages without home-manager: `pptx2pdf` (default), `pptx2pdf-system`, `pptx2pdf-static`.
 
-```nix
-imports = [ ./pptx2pdf.nix ];
-```
+## WASM dist
+
+NotImplemented yet
 
 ## Usage
 

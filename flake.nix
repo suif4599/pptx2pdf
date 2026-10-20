@@ -59,11 +59,20 @@
         '';
         meta.mainProgram = "emf2svg-conv";
       };
-      pptx2pdf = pkgs.writeShellScriptBin "pptx2pdf" ''
+      # libreoffice: package to install alongside (default nixpkgs LO), or null
+      # to resolve `soffice` from PATH at runtime against an LO the host
+      # already provides through another channel
+      mkPptx2pdf = { libreoffice ? pkgs.libreoffice }: pkgs.writeShellScriptBin "pptx2pdf" ''
         set -euo pipefail
         export FONTCONFIG_FILE=${fontsConf}
         export SAL_LOG="-WARN"
-        export PATH="${lib.makeBinPath [ python pkgs.inkscape pkgs.libreoffice mf-cli emf2svg-conv ]}:$PATH"
+        export PATH="${lib.makeBinPath ([ python pkgs.inkscape mf-cli emf2svg-conv ] ++ lib.optionals (libreoffice != null) [ libreoffice ])}:$PATH"
+        ${lib.optionalString (libreoffice == null) ''
+          command -v soffice >/dev/null 2>&1 || {
+            echo "pptx2pdf: configured for a system LibreOffice but soffice is not in PATH" >&2
+            exit 1
+          }
+        ''}
         flags=()
         in=""
         out=""
@@ -171,11 +180,15 @@
           "--with-build-platform-configure-options=--without-system-fontconfig --without-system-freetype --without-system-zlib"
         ];
       });
+      pptx2pdf = mkPptx2pdf { };
+      pptx2pdf-system = mkPptx2pdf { libreoffice = null; };
+      pptx2pdf-static = mkPptx2pdf { libreoffice = lo-min; };
+      lo-wasm-dist = pkgs.callPackage ./wasm-dist.nix { };
     in
     {
       packages.${system} = {
         default = pptx2pdf;
-        inherit pptx2pdf mf-cli emf2svg-conv lo-min;
+        inherit pptx2pdf pptx2pdf-system pptx2pdf-static lo-wasm-dist mf-cli emf2svg-conv lo-min;
       };
 
       apps.${system}.default = {
