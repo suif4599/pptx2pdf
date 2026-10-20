@@ -49,3 +49,7 @@ pptx2pdf [--nosvg] <input.pptx|input.ppt> [output.pdf]
 Binary `.ppt` input is converted to pptx with LibreOffice first.
 
 When the output path is omitted, generate a `.pdf` file with the same name in the input file directory.
+
+## License
+
+This project is licensed under the **GNU General Public License v3.0**. See the [LICENSE](LICENSE) file for the full license text.
