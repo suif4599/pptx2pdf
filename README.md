@@ -38,7 +38,31 @@ Equivalent packages without home-manager: `pptx2pdf` (default), `pptx2pdf-system
 
 ## WASM dist
 
-NotImplemented yet
+Full in-browser conversion (formula fix + LibreOffice render, nothing leaves the
+machine). Build the static dist (LO artifacts come from the out-of-tree
+emscripten build; everything else is built by the flake):
+
+```bash
+LO_WASM_ARTIFACTS=~/lo-src/build-wasm/workdir/installation/LibreOffice/emscripten \
+  nix build --impure .#lo-wasm-dist
+```
+
+Output layout: `result/dist/` is the site (open with any COOP/COEP header
+server), `result/r2/` holds the two big binaries (`soffice.wasm`, fonts-appended
+`soffice.data`) meant for R2, served under the site's `lo/` path by the Worker
+in `dist/worker/` (`wrangler deploy`). Local test:
+
+```bash
+nix shell nixpkgs#python3 -c python3 /tmp/wasm-serve.py result/dist result/r2 8931
+```
+
+then open http://127.0.0.1:8931 — open a pptx/ppt, watch the progress bar, get
+an in-page PDF preview and download. The page requires cross-origin isolation
+(SharedArrayBuffer); the shipped `_headers` handles it on Cloudflare Pages.
+
+Known limitation: the shipped font set has no CJK — Chinese slide text renders
+as tofu in LO-wasm output until CJK subsets are added (append-only step in
+`wasm-dist.nix`).
 
 ## Usage
 

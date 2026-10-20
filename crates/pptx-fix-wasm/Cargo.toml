@@ -1,0 +1,12 @@
+[package]
+name = "pptx-fix-wasm"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+pptx-fix-core = { path = "../pptx-fix-core" }
+wasm-bindgen = "=0.2.129"
+js-sys = "0.3"

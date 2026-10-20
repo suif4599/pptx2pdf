@@ -36,7 +36,7 @@
         src = ./.;
         filter = path: type:
           let rel = lib.removePrefix (toString ./.) path;
-          in lib.any (p: lib.hasPrefix p rel) [ "/Cargo.toml" "/Cargo.lock" "/src" ];
+          in lib.any (p: lib.hasPrefix p rel) [ "/Cargo.toml" "/Cargo.lock" "/crates" ];
       };
       # Cargo.toml path-depends on third_party/metafile-rs, which the flake
       # git source lacks (submodule), so graft the pinned input back in
@@ -201,12 +201,23 @@
       pptx2pdf = mkPptx2pdf { };
       pptx2pdf-system = mkPptx2pdf { libreoffice = null; };
       pptx2pdf-static = mkPptx2pdf { libreoffice = lo-min; };
-      lo-wasm-dist = pkgs.callPackage ./wasm-dist.nix { };
+      emf2svg-wasm = pkgs.callPackage ./nix/emf2svg-wasm.nix {
+        inherit libemf2svg;
+        wrapper = ./emf2svg-wasm/wrapper.c;
+      };
+      pptx-fix-wasm = pkgs.callPackage ./nix/pptx-fix-wasm.nix {
+        inherit rustSrcFull;
+      };
+      lo-wasm-dist = pkgs.callPackage ./wasm-dist.nix {
+        inherit emf2svg-wasm pptx-fix-wasm;
+        inherit (pkgs) python3 corefonts liberation_ttf dejavu_fonts wqy_microhei;
+        wineFonts = pkgs.callPackage "${nixpkgs}/pkgs/applications/emulators/wine/fonts.nix" { };
+      };
     in
     {
       packages.${system} = {
         default = pptx2pdf;
-        inherit pptx2pdf pptx2pdf-system pptx2pdf-static lo-wasm-dist mf-cli emf2svg-conv lo-min;
+        inherit pptx2pdf pptx2pdf-system pptx2pdf-static lo-wasm-dist emf2svg-wasm pptx-fix-wasm mf-cli emf2svg-conv lo-min;
       };
 
       apps.${system}.default = {

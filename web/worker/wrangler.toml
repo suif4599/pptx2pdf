@@ -1,0 +1,7 @@
+name = "lo-wasm-assets"
+main = "worker.js"
+compatibility_date = "2026-01-01"
+
+[r2_buckets]
+binding = "LO_ASSETS"
+bucket_name = "lo-wasm-assets"

@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pptx2pdf</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<main>
+  <h1>pptx → pdf</h1>
+  <p class="hint">Conversion runs entirely in your browser. Nothing is uploaded.</p>
+
+  <section id="fontgate" hidden>
+    <p class="hint">Use fonts installed on this computer so text matches the deck? The browser asks for permission once.</p>
+    <button id="usefonts">Use local fonts</button>
+    <button id="skipfonts" class="secondary">Skip</button>
+  </section>
+
+  <label id="open" for="file">Open .pptx / .ppt</label>
+  <input id="file" type="file" accept=".pptx,.ppt">
+
+  <details id="fonts">
+    <summary>Font fallback</summary>
+    <div id="fontmap"></div>
+  </details>
+
+  <section id="progress" hidden>
+    <div id="stage"></div>
+    <div class="bar"><div id="fill"></div></div>
+    <div id="detail"></div>
+  </section>
+
+  <p id="error" hidden></p>
+
+  <section id="result" hidden>
+    <div class="row">
+      <button id="download">Download PDF</button>
+      <span id="pdfsize"></span>
+    </div>
+    <iframe id="preview"></iframe>
+  </section>
+</main>
+<script type="module" src="app.js"></script>
+</body>
+</html>

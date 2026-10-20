@@ -1,9 +1,15 @@
-[package]
-name = "mf-cli"
-version = "0.1.0"
-edition = "2021"
+[workspace]
+resolver = "2"
+members = [
+    "crates/mf-cli",
+    "crates/pptx-fix-core",
+    "crates/pptx-fix-wasm",
+]
+exclude = [
+    "third_party/metafile-rs",
+]
 
-[dependencies]
+[workspace.dependencies]
 metafile = { path = "third_party/metafile-rs/crates/metafile" }
 
 [profile.release]

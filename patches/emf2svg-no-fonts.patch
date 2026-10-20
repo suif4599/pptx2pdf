@@ -1,0 +1,46 @@
+--- a/src/lib/emf2svg_utils.c	2026-10-20 14:18:33.145034281 +0800
++++ b/src/lib/emf2svg_utils.c	2026-10-20 14:18:33.158034189 +0800
+@@ -13,9 +13,11 @@
+ #include <string.h>
+ #include <iconv.h>
+ #include <errno.h>
++#ifndef EMf2SVG_NO_FONTS
+ #include <ft2build.h>
+ #include <fontconfig/fontconfig.h>
+ #include FT_FREETYPE_H
++#endif
+ 
+ void U_EMRNOTIMPLEMENTED_draw(const char *name, const char *contents, FILE *out,
+                               drawingStates *states) {
+@@ -1034,6 +1036,7 @@
+     }
+     fprintf(out, "font-size=\"%.4f\" ", font_height);
+ }
++#ifndef EMf2SVG_NO_FONTS
+ 
+ // get the closest ttf file matching font_family, weight, italic
+ static int get_fontpath(char *font_family, int weight, int italic,
+@@ -1303,6 +1306,7 @@
+     *out = buf;
+     return 0;
+ }
++#endif
+ 
+ static int enc_to_utf8(char *in, size_t size_in, char **out, size_t *out_len,
+                        char *from_enc) {
+@@ -1423,11 +1427,15 @@
+         break;
+     case FONTINDEX:
+         returnOutOfEmf((intptr_t)in + 2 * (intptr_t)size_in);
++#ifndef EMf2SVG_NO_FONTS
+         ret = fontindex_to_utf8((uint16_t *)in, size_in, (char **)&string,
+                                 size_out,
+                                 states->currentDeviceContext.font_family,
+                                 states->currentDeviceContext.font_weight,
+                                 states->currentDeviceContext.font_italic);
++#else
++        ret = 1;
++#endif
+         if (ret==0 && string!=NULL) {
+             switch (states->currentDeviceContext.font_charset) {
+             case U_HEBREW_CHARSET:
