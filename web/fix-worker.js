@@ -1,11 +1,10 @@
-import initFix, { Callbacks, fix_pptx } from './pptx_fix_wasm.js';
-
 let fonts = [];
+let fixMod = null;
 
-async function setup({ emfDir, v, fonts: bufs }) {
+async function setup({ emfDir, loBase, v, fonts: bufs }) {
   fonts = bufs.map((b) => new Uint8Array(b));
-  const emfBuf = await (await fetch(emfDir + 'emf2svg.wasm')).arrayBuffer();
-  const Emf2Svg = (await import(emfDir + 'emf2svg.js?' + v)).default;
+  const emfBuf = await (await fetch(loBase + 'emf2svg.wasm?v=' + v)).arrayBuffer();
+  const Emf2Svg = (await import(emfDir + 'emf2svg.js?v=' + v)).default;
   const emfMod = await Emf2Svg({
     instantiateWasm: (info, ok) => WebAssembly.instantiate(emfBuf, info).then((r) => ok(r.instance)),
   });
@@ -24,7 +23,9 @@ async function setup({ emfDir, v, fonts: bufs }) {
     emfMod._free(outLenSlot);
     return svg;
   };
-  await initFix();
+  fixMod = await import('./pptx_fix_wasm.js?v=' + v);
+  const fixBuf = await (await fetch(loBase + 'pptx_fix_wasm_bg.wasm?v=' + v)).arrayBuffer();
+  await fixMod.default({ module_or_path: fixBuf });
 }
 
 self.onmessage = async (e) => {
@@ -40,11 +41,11 @@ self.onmessage = async (e) => {
   }
   if (msg.type === 'convert') {
     try {
-      const cb = new Callbacks(
+      const cb = new fixMod.Callbacks(
         () => {},
         (cur, total, media) => self.postMessage({ type: 'media', cur, total, media }),
       );
-      const out = fix_pptx(msg.pptx, fonts, cb, msg.fontMap);
+      const out = fixMod.fix_pptx(msg.pptx, fonts, cb, msg.fontMap);
       self.postMessage({ type: 'done', pptx: out }, [out.buffer]);
     } catch (err) {
       self.postMessage({ type: 'error', error: String(err) });

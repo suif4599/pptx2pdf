@@ -1,5 +1,5 @@
 const LO_BASE = new URL('lo/', document.baseURI).href;
-const V = 'v=3';
+const V = 'dev';
 
 const $ = (id) => document.getElementById(id);
 let loPort = null;
@@ -248,7 +248,7 @@ function setStage(text) {
 }
 
 function setBar(frac) {
-  $('fill').style.width = `${Math.round(frac * 100)}%`;
+  $('fill').style.width = `${Math.round(Math.min(1, Math.max(0, frac)) * 100)}%`;
 }
 
 function setDetail(text) {
@@ -266,9 +266,11 @@ function mb(n) {
   return `${(n / 1048576).toFixed(1)} MB`;
 }
 
-async function prefetch(url, onBytes) {
+async function prefetch(url, expected, onBytes) {
   const res = await fetch(url);
-  const total = +res.headers.get('Content-Length') || 0;
+  const enc = (res.headers.get('Content-Encoding') || '') === 'br';
+  const raw = expected ? expected.raw || 0 : 0;
+  const total = expected ? (enc ? expected.br : expected.raw) : (+res.headers.get('Content-Length') || 0);
   if (!res.body) return res.arrayBuffer();
   const parts = [];
   let got = 0;
@@ -278,7 +280,7 @@ async function prefetch(url, onBytes) {
     if (done) break;
     parts.push(value);
     got += value.length;
-    onBytes(got, total);
+    onBytes(raw ? got * (total / raw) : got, total);
   }
   const out = new Uint8Array(got);
   let off = 0;
@@ -316,15 +318,16 @@ function launch() {
 async function startEngine() {
   setStage('Loading engine');
   const realFetch = window.fetch;
-  let wasmDone = 0, dataDone = 0, wasmTotal = 0, dataTotal = 0;
+  let wasmShown = 0, dataShown = 0, wasmTotal = 0, dataTotal = 0;
   const report = () => {
     const total = wasmTotal + dataTotal;
-    const done = wasmDone + dataDone;
-    setBar(total ? done / total : 0);
-    setDetail(`${mb(done)} / ${mb(total)}`);
+    const shown = wasmShown + dataShown;
+    setBar(total ? shown / total : 0);
+    setDetail(`${mb(shown)} / ${mb(total)}`);
   };
-  const wasmP = prefetch(LO_BASE + 'soffice.wasm', (d, t) => { wasmDone = d; wasmTotal = t; report(); });
-  const dataP = prefetch(LO_BASE + 'soffice.data', (d, t) => { dataDone = d; dataTotal = t; report(); });
+  const sizes = await fetch(LO_BASE + 'sizes.json?v=' + V).then((r) => r.json()).catch(() => ({}));
+  const wasmP = prefetch(LO_BASE + 'soffice.wasm?v=' + V, sizes['soffice.wasm'], (s, t) => { wasmShown = s; wasmTotal = t; report(); });
+  const dataP = prefetch(LO_BASE + 'soffice.data?v=' + V, sizes['soffice.data'], (s, t) => { dataShown = s; dataTotal = t; report(); });
   const wasmBuf = await wasmP;
   const dataBuf = await dataP;
 
@@ -338,7 +341,7 @@ async function startEngine() {
   setStage('Starting LibreOffice');
   let loStatus = '';
   window.Module = {
-    locateFile: (f) => LO_BASE + f,
+    locateFile: (f) => LO_BASE + f + '?v=' + V,
     wasmBinary: wasmBuf,
     preRun: [() => {
       const dir = '/instdir/share/fonts/truetype';
@@ -379,7 +382,7 @@ async function startEngine() {
       180000,
     );
     const s = document.createElement('script');
-    s.src = LO_BASE + 'soffice.js?' + V;
+    s.src = LO_BASE + 'soffice.js?v=' + V;
     s.onload = () => {
       restoreProcess();
       console.log('[boot] soffice.js evaluated');
@@ -438,10 +441,10 @@ let fixWorker = null;
 let fixReady = null;
 
 async function fetchFontBuffers() {
-  const base = new URL('fonts/', document.baseURI).href;
-  const list = await (await fetch(base + 'index.json')).json();
+  const base = LO_BASE + 'fonts/';
+  const list = await (await fetch(base + 'index.json?v=' + V)).json();
   const bufs = [];
-  for (const f of list) bufs.push(await (await fetch(base + f)).arrayBuffer());
+  for (const f of list) bufs.push(await (await fetch(base + f + '?v=' + V)).arrayBuffer());
   return bufs;
 }
 
@@ -464,7 +467,7 @@ function initFixWorker() {
       w.addEventListener('message', onMsg);
       w.onerror = (e) => reject(new Error(e.message || 'fix worker failed'));
       w.postMessage(
-        { type: 'init', emfDir: new URL('vendor/', document.baseURI).href, v: V, fonts },
+        { type: 'init', emfDir: new URL('vendor/', document.baseURI).href, loBase: LO_BASE, v: V, fonts },
         fonts,
       );
     });

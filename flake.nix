@@ -210,7 +210,7 @@
       };
       lo-wasm-dist = pkgs.callPackage ./wasm-dist.nix {
         inherit emf2svg-wasm pptx-fix-wasm;
-        inherit (pkgs) python3 corefonts liberation_ttf dejavu_fonts wqy_microhei;
+        inherit (pkgs) python3 corefonts liberation_ttf dejavu_fonts wqy_microhei brotli;
         wineFonts = pkgs.callPackage "${nixpkgs}/pkgs/applications/emulators/wine/fonts.nix" { };
       };
     in

@@ -48,9 +48,13 @@ LO_WASM_ARTIFACTS=~/lo-src/build-wasm/workdir/installation/LibreOffice/emscripte
 ```
 
 Output layout: `result/dist/` is the site (open with any COOP/COEP header
-server), `result/r2/` holds the two big binaries (`soffice.wasm`, fonts-appended
-`soffice.data`) meant for R2, served under the site's `lo/` path by the Worker
-in `dist/worker/` (`wrangler deploy`). Local test:
+server), `result/r2/` holds everything the page loads from the `lo/` path —
+`soffice.js`, `soffice.wasm`, the fonts-appended `soffice.data` and its
+metadata, the bundled fonts, and the two wasm modules used by the fix step —
+each with a `.br` variant served when the client accepts brotli.
+The Worker in `dist/worker/` serves them (`wrangler deploy`; upload every file
+in `r2/`, including `fonts/` and `sizes.json`).
+Local test:
 
 ```bash
 nix shell nixpkgs#python3 -c python3 /tmp/wasm-serve.py result/dist result/r2 8931
@@ -60,9 +64,10 @@ then open http://127.0.0.1:8931 — open a pptx/ppt, watch the progress bar, get
 an in-page PDF preview and download. The page requires cross-origin isolation
 (SharedArrayBuffer); the shipped `_headers` handles it on Cloudflare Pages.
 
-Known limitation: the shipped font set has no CJK — Chinese slide text renders
-as tofu in LO-wasm output until CJK subsets are added (append-only step in
-`wasm-dist.nix`).
+Fonts: the bundled set includes WenQuanYi Micro Hei as a CJK fallback; when the
+browser grants font access, fonts installed on the machine are scanned, cached
+in IndexedDB, and used instead. Chinese slide text therefore renders in both
+cases (the CJK fallback is a sans font, so serif families are substituted).
 
 ## Usage
 
