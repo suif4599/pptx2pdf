@@ -85,6 +85,10 @@ runCommand "lo-wasm-dist"
     ${brotli}/bin/brotli -q 11 -w 24 -c $out/r2/pptx_fix_wasm_bg.wasm > $out/r2/pptx_fix_wasm_bg.wasm.br
 
     cp ${optArts}/fonts/* $out/r2/fonts/
+    # the MS core fonts EULA requires a copy to accompany every distribution of the fonts
+    cp ${corefonts}/share/fonts/truetype/eula.html $out/r2/fonts/eula.html
+    mkdir -p $out/dist/licenses
+    cp ${corefonts}/share/fonts/truetype/eula.html $out/dist/licenses/msttcorefonts-eula.html
 
     cp ${optArts}/soffice.wasm ${optArts}/soffice.wasm.br $out/r2/
     cp ${optArts}/soffice.data ${optArts}/soffice.data.br $out/r2/
