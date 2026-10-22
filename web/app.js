@@ -12,27 +12,6 @@ addEventListener('error', (e) => {
   if (!ready) bootError = e.message;
 });
 
-const THEME_KEY = 'theme';
-const themeBtn = $('theme');
-
-function activeTheme() {
-  return document.documentElement.dataset.theme
-    || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-}
-
-function updateThemeButton() {
-  themeBtn.textContent = activeTheme() === 'dark' ? '☀' : '☾';
-}
-
-themeBtn.addEventListener('click', () => {
-  document.documentElement.dataset.theme = activeTheme() === 'dark' ? 'light' : 'dark';
-  localStorage.setItem(THEME_KEY, document.documentElement.dataset.theme);
-  updateThemeButton();
-});
-
-matchMedia('(prefers-color-scheme: dark)').addEventListener('change', updateThemeButton);
-updateThemeButton();
-
 const CJK_FALLBACK = 'WenQuanYi Micro Hei';
 const SANS_CJK = [
   'Noto Sans CJK SC', 'Noto Sans SC', 'Source Han Sans SC', 'Microsoft YaHei',
@@ -188,28 +167,31 @@ function buildFontPanel() {
   const saved = savedFontMap();
   const box = $('fontmap');
   box.textContent = '';
-  const opts = ['auto', CJK_FALLBACK, ''];
-  for (const c of [...SANS_CJK, ...SERIF_CJK]) {
-    if (localNames.has(c) && !opts.includes(c)) opts.push(c);
-  }
+  const count = $('fontcount');
+  if (count) count.textContent = `${FAMILY_TABLE.length} families`;
   for (const fam of FAMILY_TABLE) {
+    const target = autoTarget(fam);
+    const opts = [...new Set([target, CJK_FALLBACK, '', ...[...SANS_CJK, ...SERIF_CJK].filter((c) => localNames.has(c))])];
+    const row = document.createElement('div');
+    row.className = 'font-row';
     const label = document.createElement('label');
     label.textContent = fam;
     const sel = document.createElement('select');
     for (const opt of opts) {
       const o = document.createElement('option');
       o.value = opt;
-      o.textContent = opt === 'auto' ? 'auto' : opt || 'leave unchanged';
+      o.textContent = opt || 'leave unchanged';
       sel.appendChild(o);
     }
-    const want = fam in saved ? saved[fam] : 'auto';
-    sel.value = opts.includes(want) ? want : 'auto';
+    const want = fam in saved ? saved[fam] : target;
+    sel.value = opts.includes(want) ? want : target;
     sel.addEventListener('change', () => {
       const m = savedFontMap();
       m[fam] = sel.value;
       localStorage.setItem(FONT_STORE, JSON.stringify(m));
     });
-    box.append(label, sel);
+    row.append(label, sel);
+    box.append(row);
   }
   const rescan = document.createElement('button');
   rescan.textContent = 'Rescan local fonts';
@@ -248,7 +230,9 @@ function setStage(text) {
 }
 
 function setBar(frac) {
-  $('fill').style.width = `${Math.round(Math.min(1, Math.max(0, frac)) * 100)}%`;
+  const pct = Math.round(Math.min(1, Math.max(0, frac)) * 100);
+  $('fill').style.width = `${pct}%`;
+  $('bar').setAttribute('aria-valuenow', String(pct));
 }
 
 function setDetail(text) {
@@ -268,9 +252,8 @@ function mb(n) {
 
 async function prefetch(url, expected, onBytes) {
   const res = await fetch(url);
-  const enc = (res.headers.get('Content-Encoding') || '') === 'br';
   const raw = expected ? expected.raw || 0 : 0;
-  const total = expected ? (enc ? expected.br : expected.raw) : (+res.headers.get('Content-Length') || 0);
+  const total = expected ? (expected.br || expected.raw) : (+res.headers.get('Content-Length') || 0);
   if (!res.body) return res.arrayBuffer();
   const parts = [];
   let got = 0;
@@ -280,7 +263,7 @@ async function prefetch(url, expected, onBytes) {
     if (done) break;
     parts.push(value);
     got += value.length;
-    onBytes(raw ? got * (total / raw) : got, total);
+    onBytes(raw ? Math.min(got, raw) * (total / raw) : got, total);
   }
   const out = new Uint8Array(got);
   let off = 0;
@@ -558,6 +541,15 @@ $('download').addEventListener('click', () => {
   a.href = URL.createObjectURL(pdfBlob);
   a.download = pdfName;
   a.click();
+});
+
+$('forceupdate').addEventListener('click', async () => {
+  const btn = $('forceupdate');
+  btn.disabled = true;
+  btn.textContent = 'Updating…';
+  const files = ['sizes.json', 'soffice.js', 'soffice.wasm', 'soffice.data', 'soffice.data.js.metadata', 'fonts/index.json'];
+  await Promise.all(files.map((f) => fetch(LO_BASE + f + '?v=' + V, { cache: 'reload' }).catch(() => {})));
+  location.reload();
 });
 
 addEventListener('unhandledrejection', (e) => fail(`boot: ${e.reason}`));
